@@ -99,53 +99,98 @@ function Card({ children, title, subtitle }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   reCAPTCHA Singleton — module level pe rakhte hain
+   Component re-render pe dobara nahi banega
+───────────────────────────────────────────────────────────────────────── */
+let appVerifier = null;
+
+function clearRecaptcha() {
+  if (appVerifier) {
+    try { appVerifier.clear(); } catch {}
+    appVerifier = null;
+  }
+  // DOM container bhi reset karo
+  const container = document.getElementById("recaptcha-container");
+  if (container) container.innerHTML = "";
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Step 1 — Phone number input
 ───────────────────────────────────────────────────────────────────────── */
 function StepPhone({ onSent }) {
-  const [country,   setCountry]   = useState(COUNTRIES[0]);
-  const [phone,     setPhone]     = useState("");
-  const [showDrop,  setShowDrop]  = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const recaptchaRef = useRef(null);
+  const [country,  setCountry]  = useState(COUNTRIES[0]);
+  const [phone,    setPhone]    = useState("");
+  const [showDrop, setShowDrop] = useState(false);
+  const [loading,  setLoading]  = useState(false);
 
   const fullNumber = `${country.code}${phone.replace(/\D/g, "")}`;
+
+  // Component mount pe ek baar reCAPTCHA banao
+  useEffect(() => {
+    // Pehle purana clear karo
+    clearRecaptcha();
+
+    // Naya banao
+    try {
+      appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+        callback: () => {},
+        "expired-callback": () => {
+          clearRecaptcha();
+          toast.error("reCAPTCHA expired. Please try again.");
+        },
+      });
+      appVerifier.render().catch(() => {});
+    } catch (e) {
+      console.error("reCAPTCHA init error:", e);
+    }
+
+    // Component unmount pe cleanup
+    return () => { clearRecaptcha(); };
+  }, []);
 
   const handleSend = async () => {
     const digits = phone.replace(/\D/g, "");
     if (digits.length < 8) {
-      toast.error("Enter a valid phone number");
+      toast.error("Valid phone number enter karo");
+      return;
+    }
+
+    if (!appVerifier) {
+      toast.error("reCAPTCHA ready nahi hai, page refresh karo");
       return;
     }
 
     setLoading(true);
     try {
-      // Set up invisible reCAPTCHA
-      if (!recaptchaRef.current) {
-        recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+      const confirmation = await signInWithPhoneNumber(auth, fullNumber, appVerifier);
+      toast.success(`OTP bheja ${fullNumber} pe`);
+      onSent({ confirmation, phoneNumber: fullNumber });
+    } catch (err) {
+      console.error("OTP send error:", err.code, err.message);
+
+      // Error pe reCAPTCHA reset karo
+      clearRecaptcha();
+      // Dobara banao
+      try {
+        appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
           size: "invisible",
           callback: () => {},
         });
-        await recaptchaRef.current.render();
-      }
+        await appVerifier.render();
+      } catch {}
 
-      const confirmation = await signInWithPhoneNumber(auth, fullNumber, recaptchaRef.current);
-      toast.success(`OTP sent to ${fullNumber}`);
-      onSent({ confirmation, phoneNumber: fullNumber });
-    } catch (err) {
-      console.error(err);
-      // Reset reCAPTCHA on error
-      if (recaptchaRef.current) {
-        recaptchaRef.current.clear();
-        recaptchaRef.current = null;
-      }
+      // User ko sahi error batao
       if (err.code === "auth/invalid-phone-number") {
-        toast.error("Invalid phone number format");
+        toast.error("Phone number format galat hai (example: +918887704702)");
       } else if (err.code === "auth/too-many-requests") {
-        toast.error("Too many attempts. Try again later.");
-      } else if (err.code === "auth/api-key-not-valid") {
-        toast.error("Firebase not configured. Check VITE_FIREBASE_* in .env");
+        toast.error("Bahut zyada attempts. Thodi der baad try karo.");
+      } else if (err.code === "auth/api-key-not-valid" || err.code === "auth/invalid-api-key") {
+        toast.error("Firebase API key galat hai — .env check karo");
+      } else if (err.code === "auth/network-request-failed") {
+        toast.error("Internet connection check karo");
       } else {
-        toast.error(err.message || "Failed to send OTP");
+        toast.error(err.message || "OTP bhejne mein error");
       }
     } finally {
       setLoading(false);
