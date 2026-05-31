@@ -22,6 +22,7 @@ export const getMessagesByUserId = async (req, res) => {
     const { id: userToChatId } = req.params;
 
     const messages = await Message.find({
+      groupId: { $in: [null, undefined] },
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
@@ -69,6 +70,7 @@ export const getMessagesByUserId = async (req, res) => {
 
       // Re-fetch and re-filter updated messages to return with delivered status
       const updatedAllMessages = await Message.find({
+        groupId: { $in: [null, undefined] },
         $or: [
           { senderId: myId, receiverId: userToChatId },
           { senderId: userToChatId, receiverId: myId },
@@ -146,8 +148,9 @@ export const getChatPartners = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
 
-    // find all the messages where the logged-in user is either sender or receiver
+    // Only DM messages (groupId must be null/unset)
     const messages = await Message.find({
+      groupId: { $in: [null, undefined] },
       $or: [{ senderId: loggedInUserId }, { receiverId: loggedInUserId }],
     });
 
@@ -231,6 +234,7 @@ export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user._id;
     const unreadCount = await Message.countDocuments({
+      groupId: { $in: [null, undefined] },
       receiverId: userId,
       isRead: false,
     });
@@ -449,6 +453,138 @@ export const removeReaction = async (req, res) => {
     res.status(200).json(message);
   } catch (error) {
     console.log("Error in removeReaction controller:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/* ── AI Reply ─────────────────────────────────────────────────────────────── */
+export const getAIReply = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ message: "Text is required." });
+
+    const reply = await generateAIReply(text, req.user.fullName);
+    res.status(200).json({ reply });
+  } catch (error) {
+    console.error("getAIReply:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/* ── Search messages ──────────────────────────────────────────────────────── */
+export const searchMessages = async (req, res) => {
+  try {
+    const { q, withUserId } = req.query;
+    const myId = req.user._id;
+
+    if (!q?.trim()) return res.status(400).json({ message: "Query required." });
+
+    const query = {
+      groupId: { $in: [null, undefined] },
+      deletedForEveryone: { $ne: true },
+      text: { $regex: q.trim(), $options: "i" },
+    };
+
+    if (withUserId) {
+      query.$or = [
+        { senderId: myId, receiverId: withUserId },
+        { senderId: withUserId, receiverId: myId },
+      ];
+    } else {
+      query.$or = [{ senderId: myId }, { receiverId: myId }];
+    }
+
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(40)
+      .populate("senderId", "_id fullName profilePic");
+
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error("searchMessages:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/* ── Pin / Unpin message ──────────────────────────────────────────────────── */
+export const pinMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const message = await Message.findById(messageId);
+    if (!message) return res.status(404).json({ message: "Message not found." });
+
+    const isPinned = !message.isPinned;
+    await Message.findByIdAndUpdate(messageId, { isPinned });
+
+    // Notify both parties
+    const otherId = message.senderId.toString() === req.user._id.toString()
+      ? message.receiverId
+      : message.senderId;
+
+    const otherSocket = getReceiverSocketId(otherId);
+    if (otherSocket) io.to(otherSocket).emit("messagePinned", { messageId, isPinned });
+
+    res.status(200).json({ messageId, isPinned });
+  } catch (error) {
+    console.error("pinMessage:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getPinnedMessages = async (req, res) => {
+  try {
+    const { userId: withUserId } = req.params;
+    const myId = req.user._id;
+
+    const pins = await Message.find({
+      groupId: { $in: [null, undefined] },
+      isPinned: true,
+      $or: [
+        { senderId: myId, receiverId: withUserId },
+        { senderId: withUserId, receiverId: myId },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .populate("senderId", "_id fullName");
+
+    res.status(200).json(pins);
+  } catch (error) {
+    console.error("getPinnedMessages:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/* ── Forward message ──────────────────────────────────────────────────────── */
+export const forwardMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { toUserIds = [] } = req.body;    // array of user IDs
+    const senderId = req.user._id;
+
+    const original = await Message.findById(messageId);
+    if (!original) return res.status(404).json({ message: "Message not found." });
+    if (original.deletedForEveryone) return res.status(400).json({ message: "Cannot forward deleted message." });
+
+    const forwarded = await Promise.all(
+      toUserIds.map(async (receiverId) => {
+        const msg = await Message.create({
+          senderId,
+          receiverId,
+          text: original.text,
+          image: original.image,
+          isForwarded: true,
+        });
+
+        const receiverSocket = getReceiverSocketId(receiverId);
+        if (receiverSocket) io.to(receiverSocket).emit("newMessage", msg);
+
+        return msg;
+      })
+    );
+
+    res.status(201).json(forwarded);
+  } catch (error) {
+    console.error("forwardMessage:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
