@@ -29,7 +29,8 @@ app.use(cors({
     if (!origin) return cb(null, true);
     if (
       allowedOrigins.includes(origin) ||
-      origin.endsWith(".onrender.com")
+      origin.endsWith(".onrender.com") ||
+      origin.endsWith(".vercel.app")
     ) {
       return cb(null, true);
     }
