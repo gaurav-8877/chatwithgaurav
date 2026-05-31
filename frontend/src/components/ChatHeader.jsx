@@ -1,139 +1,129 @@
-import { X, Phone, Video, Search, MoreVertical } from "lucide-react";
+import { Phone, Video, Search, MoreVertical, ArrowLeft, Pin, UserX, BellOff } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import TypingIndicator from "./TypingIndicator";
+import { useCallStore } from "../store/useCallStore";
+import { useState, useEffect } from "react";
 
-function ChatHeader() {
+function fmtLastSeen(date) {
+  if (!date) return "";
+  const m = Math.floor((Date.now() - new Date(date)) / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+export default function ChatHeader({ onShowProfile, onShowSearch, onShowPinned }) {
   const { selectedUser, setSelectedUser, isTyping } = useChatStore();
   const { onlineUsers } = useAuthStore();
-  const [lastSeen, setLastSeen] = useState(null);
+  const { initiateCall } = useCallStore();
   const [showMenu, setShowMenu] = useState(false);
+  const [lastSeen, setLastSeen] = useState(null);
 
-  const isOnline = onlineUsers.includes(selectedUser._id);
-
-  useEffect(() => {
-    if (isOnline) {
-      setLastSeen(null);
-    } else {
-      setLastSeen(new Date(Date.now() - Math.random() * 3600000));
-    }
-  }, [isOnline]);
-
-  const formatLastSeen = (date) => {
-    if (!date) return "";
-    const minutes = Math.floor((Date.now() - new Date(date)) / 60000);
-    if (minutes < 1) return "last seen just now";
-    if (minutes < 60) return `last seen ${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `last seen ${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `last seen ${days}d ago`;
-  };
+  const isOnline = onlineUsers.includes(selectedUser?._id);
 
   useEffect(() => {
-    const handleEscKey = (event) => {
-      if (event.key === "Escape") setSelectedUser(null);
-    };
-    window.addEventListener("keydown", handleEscKey);
-    return () => window.removeEventListener("keydown", handleEscKey);
+    setLastSeen(selectedUser?.lastSeen ? new Date(selectedUser.lastSeen) : new Date(Date.now() - Math.random() * 3_600_000));
+  }, [isOnline, selectedUser]);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setSelectedUser(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [setSelectedUser]);
 
+  if (!selectedUser) return null;
+
+  const handleCall  = () => initiateCall(selectedUser, "audio");
+  const handleVideo = () => initiateCall(selectedUser, "video");
+
   return (
-    <div className="flex-shrink-0 h-chat-header bg-surface-secondary border-b border-divider px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-      {/* Left: User info */}
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        {/* Close button (mobile only) */}
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="md:hidden btn-icon text-secondary"
-        >
-          <X className="w-5 h-5" />
+    <header
+      className="flex-shrink-0 flex items-center justify-between px-4 sm:px-5 h-[66px]"
+      style={{ background: "var(--s2)", borderBottom: "1px solid var(--border)" }}
+    >
+      {/* Left */}
+      <div className="flex items-center gap-3 min-w-0">
+        <button onClick={() => setSelectedUser(null)} className="md:hidden icon-btn">
+          <ArrowLeft className="w-4 h-4" />
         </button>
 
-        {/* Avatar */}
-        <div className="relative flex-shrink-0">
-          <img
-            src={selectedUser.profilePic || "/avatar.png"}
-            alt={selectedUser.fullName}
-            className="w-10 sm:w-12 h-10 sm:h-12 rounded-full object-cover"
-          />
-          <div
-            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface-secondary ${
-              isOnline ? "bg-green-500 animate-pulse-glow" : "bg-slate-500"
-            }`}
-          />
-        </div>
-
-        {/* User details */}
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base sm:text-lg font-semibold text-primary truncate">
-            {selectedUser.fullName}
-          </h3>
-          <div className="text-xs sm:text-sm text-secondary truncate">
-            {isTyping ? (
-              <span className="inline-flex items-center gap-1">
-                <span className="animate-pulse">typing</span>
-              </span>
-            ) : (
-              <span className={isOnline ? "text-green-400" : "text-secondary"}>
-                {isOnline ? "Active now" : formatLastSeen(lastSeen)}
-              </span>
-            )}
+        <button
+          onClick={onShowProfile}
+          className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+        >
+          <div className="relative flex-shrink-0">
+            <img
+              src={selectedUser.profilePic || "/avatar.png"}
+              alt={selectedUser.fullName}
+              className="w-10 h-10 rounded-full object-cover"
+              style={{ border: `2px solid ${isOnline ? "var(--online)" : "var(--border-2)"}` }}
+            />
+            {isOnline && <span className="online-dot" />}
           </div>
-        </div>
+
+          <div className="min-w-0 text-left">
+            <p className="text-sm font-semibold truncate" style={{ color: "var(--t1)" }}>
+              {selectedUser.fullName}
+            </p>
+            <p className="text-xs leading-tight truncate" style={{ color: isOnline ? "var(--online)" : "var(--t3)" }}>
+              {isTyping ? (
+                <span style={{ color: "var(--accent)" }} className="italic">typing…</span>
+              ) : isOnline ? "Online" : lastSeen ? `last seen ${fmtLastSeen(lastSeen)}` : "offline"}
+            </p>
+          </div>
+        </button>
       </div>
 
-      {/* Right: Action buttons */}
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-        {/* Voice call */}
-        <button className="btn-icon text-secondary hover:text-primary hover:bg-surface-tertiary/50">
-          <Phone className="w-5 h-5" />
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button className="icon-btn" onClick={handleCall}  title="Voice call">
+          <Phone className="w-4 h-4" strokeWidth={1.8} />
         </button>
-
-        {/* Video call */}
-        <button className="btn-icon text-secondary hover:text-primary hover:bg-surface-tertiary/50">
-          <Video className="w-5 h-5" />
+        <button className="icon-btn" onClick={handleVideo} title="Video call">
+          <Video className="w-4 h-4" strokeWidth={1.8} />
         </button>
-
-        {/* Search (desktop only) */}
-        <button className="hidden sm:flex btn-icon text-secondary hover:text-primary hover:bg-surface-tertiary/50">
-          <Search className="w-5 h-5" />
+        <button className="hidden sm:flex icon-btn" onClick={onShowSearch} title="Search messages">
+          <Search className="w-4 h-4" strokeWidth={1.8} />
         </button>
 
         {/* More menu */}
         <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="btn-icon text-secondary hover:text-primary hover:bg-surface-tertiary/50"
-          >
-            <MoreVertical className="w-5 h-5" />
+          <button className="icon-btn" onClick={() => setShowMenu(!showMenu)}>
+            <MoreVertical className="w-4 h-4" strokeWidth={1.8} />
           </button>
-
           {showMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-surface-tertiary border border-divider rounded-lg shadow-glass p-2 space-y-1 z-50 animate-fade-in">
-              <button className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-primary/50 rounded transition-colors">
-                View profile
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-primary/50 rounded transition-colors">
-                Search messages
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-primary/50 rounded transition-colors">
-                Mute conversation
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-primary/50 rounded transition-colors">
-                Clear chat
-              </button>
-              <div className="h-px bg-divider my-1" />
-              <button className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded transition-colors">
+            <div
+              className="absolute right-0 top-full mt-2 w-48 rounded-2xl py-1.5 z-50 animate-fade-in"
+              style={{ background: "var(--s3)", border: "1px solid var(--border-2)", boxShadow: "0 16px 48px rgba(0,0,0,0.4)" }}
+              onClick={() => setShowMenu(false)}
+            >
+              {[
+                { label: "View profile",    icon: null, action: onShowProfile  },
+                { label: "Search messages", icon: null, action: onShowSearch   },
+                { label: "Pinned messages", icon: null, action: onShowPinned   },
+              ].map(({ label, action }) => (
+                <button key={label} onClick={action}
+                  className="w-full flex items-center px-4 py-2 text-sm text-left transition-colors"
+                  style={{ color: "var(--t2)" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--border)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  {label}
+                </button>
+              ))}
+              <div className="divider mx-4 my-1" />
+              <button className="w-full flex items-center px-4 py-2 text-sm text-left transition-colors"
+                style={{ color: "var(--danger)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.08)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 Block user
               </button>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </header>
   );
 }
-
-export default ChatHeader;

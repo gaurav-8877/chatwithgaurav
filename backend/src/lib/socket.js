@@ -4,85 +4,149 @@ import express from "express";
 import { ENV } from "./env.js";
 import { socketAuthMiddleware } from "../middleware/socket.auth.middleware.js";
 import Message from "../models/Message.js";
+import Group from "../models/Group.js";
+import User from "../models/User.js";
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [ENV.CLIENT_URL],
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (
+        ["http://localhost:5173", "http://localhost:3000"].includes(origin) ||
+        (ENV.CLIENT_URL && origin === ENV.CLIENT_URL) ||
+        origin.endsWith(".onrender.com")
+      ) return cb(null, true);
+      cb(new Error(`Socket CORS blocked: ${origin}`));
+    },
     credentials: true,
   },
 });
 
-// apply authentication middleware to all socket connections
 io.use(socketAuthMiddleware);
 
-// we will use this function to check if the user is online or not
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+const userSocketMap = {};   // { userId: socketId }
+global.userSocketMap = userSocketMap;
+
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
+  return userSocketMap[userId?.toString()];
+}
+export function getGroupRoomId(groupId) {
+  return `group:${groupId}`;
 }
 
-// this is for storig online users
-const userSocketMap = {}; // {userId:socketId}
-
-io.on("connection", (socket) => {
-  console.log("A user connected", socket.user.fullName);
-
+/* ── Connection ──────────────────────────────────────────────────────────── */
+io.on("connection", async (socket) => {
   const userId = socket.userId;
-  userSocketMap[userId] = socket.id;
+  console.log("Connected:", socket.user.fullName);
 
-  // io.emit() is used to send events to all connected clients
+  userSocketMap[userId] = socket.id;
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // Listen for delivery confirmations from receiver
+  // Update status in DB
+  User.findByIdAndUpdate(userId, { status: "online", lastSeen: new Date() }).exec();
+
+  // Join group rooms
+  try {
+    const groups = await Group.find({ members: userId }).select("_id");
+    groups.forEach(g => socket.join(getGroupRoomId(g._id.toString())));
+  } catch (e) { console.error("group room join:", e.message); }
+
+  /* ── DM Events ───────────────────────────────────────────────────────── */
   socket.on("messageDelivered", async ({ messageId, senderId }) => {
     try {
-      // Update message in database as delivered
-      await Message.findByIdAndUpdate(messageId, {
-        delivered: true,
-        deliveredAt: new Date(),
-      });
-
-      // Send delivery confirmation back to sender
-      const senderSocketId = userSocketMap[senderId];
-      if (senderSocketId) {
-        io.to(senderSocketId).emit("messagesDelivered", {
-          messageIds: [messageId],
-        });
-      }
-    } catch (error) {
-      console.log("Error processing delivery confirmation:", error.message);
-    }
+      await Message.findByIdAndUpdate(messageId, { delivered: true, deliveredAt: new Date() });
+      const senderSid = userSocketMap[senderId];
+      if (senderSid) io.to(senderSid).emit("messagesDelivered", { messageIds: [messageId] });
+    } catch (e) { console.error("delivery:", e.message); }
   });
 
-  // Listen for typing indicator
   socket.on("userTyping", ({ senderId, receiverId }) => {
-    const receiverSocketId = userSocketMap[receiverId];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("userTyping", {
-        senderId,
-        receiverId,
-      });
-    }
+    const sid = userSocketMap[receiverId];
+    if (sid) io.to(sid).emit("userTyping", { senderId, receiverId });
   });
 
-  // Listen for stopped typing indicator
   socket.on("userStoppedTyping", ({ senderId, receiverId }) => {
-    const receiverSocketId = userSocketMap[receiverId];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("userStoppedTyping", {
-        senderId,
-        receiverId,
+    const sid = userSocketMap[receiverId];
+    if (sid) io.to(sid).emit("userStoppedTyping", { senderId, receiverId });
+  });
+
+  /* ── Group Events ────────────────────────────────────────────────────── */
+  socket.on("groupTyping", ({ groupId, senderId, senderName }) =>
+    socket.to(getGroupRoomId(groupId)).emit("groupTyping", { groupId, senderId, senderName })
+  );
+  socket.on("groupStoppedTyping", ({ groupId, senderId }) =>
+    socket.to(getGroupRoomId(groupId)).emit("groupStoppedTyping", { groupId, senderId })
+  );
+  socket.on("joinGroupRoom",  ({ groupId }) => socket.join(getGroupRoomId(groupId)));
+  socket.on("leaveGroupRoom", ({ groupId }) => socket.leave(getGroupRoomId(groupId)));
+
+  /* ── WebRTC Call Signaling ───────────────────────────────────────────── */
+
+  // 1. Caller → Server → Receiver: initiate call
+  socket.on("call:initiate", ({ to, callType, offer }) => {
+    const callerInfo = {
+      _id:        socket.user._id,
+      fullName:   socket.user.fullName,
+      profilePic: socket.user.profilePic,
+    };
+    const receiverSid = userSocketMap[to];
+    if (receiverSid) {
+      io.to(receiverSid).emit("call:incoming", {
+        from:     userId,
+        fromUser: callerInfo,
+        callType,
+        offer,
       });
+      // Confirm to caller that ring is delivered
+      socket.emit("call:ringing", { to });
+    } else {
+      // Receiver offline
+      socket.emit("call:unavailable", { to });
     }
   });
 
-  // with socket.on we listen for events from clients
-  socket.on("disconnect", () => {
-    console.log("A user disconnected", socket.user.fullName);
+  // 2. Receiver → Server → Caller: accepted with WebRTC answer
+  socket.on("call:accept", ({ to, answer }) => {
+    const callerSid = userSocketMap[to];
+    if (callerSid) io.to(callerSid).emit("call:accepted", { from: userId, answer });
+  });
+
+  // 3. Receiver → Server → Caller: rejected
+  socket.on("call:reject", ({ to }) => {
+    const callerSid = userSocketMap[to];
+    if (callerSid) io.to(callerSid).emit("call:rejected", { from: userId });
+  });
+
+  // 4. Either side → other side: end call
+  socket.on("call:end", ({ to }) => {
+    const otherSid = userSocketMap[to];
+    if (otherSid) io.to(otherSid).emit("call:ended", { from: userId });
+  });
+
+  // 5. ICE candidate exchange
+  socket.on("call:ice", ({ to, candidate }) => {
+    const otherSid = userSocketMap[to];
+    if (otherSid) io.to(otherSid).emit("call:ice", { from: userId, candidate });
+  });
+
+  // 6. Busy signal
+  socket.on("call:busy", ({ to }) => {
+    const callerSid = userSocketMap[to];
+    if (callerSid) io.to(callerSid).emit("call:busy", { from: userId });
+  });
+
+  /* ── Disconnect ──────────────────────────────────────────────────────── */
+  socket.on("disconnect", async () => {
+    console.log("Disconnected:", socket.user.fullName);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+    // Update DB
+    User.findByIdAndUpdate(userId, { status: "offline", lastSeen: new Date() }).exec();
   });
 });
 

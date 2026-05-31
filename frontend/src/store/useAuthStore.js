@@ -3,7 +3,11 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000" : "/";
+// In production on Render: set VITE_SOCKET_URL in the Render frontend service dashboard
+// e.g.  VITE_SOCKET_URL = https://chatwithgaurav-api.onrender.com
+const BASE_URL =
+  import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.MODE === "development" ? "http://localhost:3000" : "/");
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -66,6 +70,23 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       toast.error("Error logging out");
       console.log("Logout error:", error);
+    }
+  },
+
+  // Called after Firebase verifies OTP on the client
+  phoneLogin: async ({ idToken, fullName }) => {
+    try {
+      const res = await axiosInstance.post("/auth/phone-login", { idToken, fullName });
+      // If backend says new user & no fullName yet, caller handles that step
+      if (res.data.isNewUser && !fullName) return { needsName: true, ...res.data };
+
+      set({ authUser: res.data });
+      get().connectSocket();
+      return { success: true, isNewUser: res.data.isNewUser };
+    } catch (error) {
+      const msg = error.response?.data?.message || "Phone login failed";
+      toast.error(msg);
+      return { success: false, error: msg };
     }
   },
 
