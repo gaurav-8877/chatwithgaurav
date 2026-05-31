@@ -1,0 +1,561 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== PREMIUM GLOBAL STYLES ===== */
+@layer base {
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  body {
+    @apply bg-slate-0 text-slate-50;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.5);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+  }
+}
+
+/* ===== PREMIUM COMPONENT UTILITIES ===== */
+@layer components {
+  /* Glass containers */
+  .glass-container {
+    @apply bg-slate-950/40 backdrop-blur-md border border-slate-800/30 rounded-xl shadow-glass;
+  }
+
+  .glass-container-hover {
+    @apply glass-container hover:bg-slate-950/50 hover:border-slate-700/40 hover:shadow-glass-hover transition-all duration-300;
+  }
+
+  .glass-card {
+    @apply bg-surface-glass backdrop-blur-lg border border-divider rounded-lg;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:bg-surface-glass-light hover:border-slate-700/50 transition-all duration-300;
+  }
+
+  /* Surface variants */
+  .surface-primary {
+    @apply bg-surface-primary;
+  }
+
+  .surface-secondary {
+    @apply bg-surface-secondary;
+  }
+
+  .surface-tertiary {
+    @apply bg-surface-tertiary;
+  }
+
+  /* Text hierarchy */
+  .text-header {
+    @apply text-3xl font-bold text-primary;
+  }
+
+  .text-title {
+    @apply text-xl font-semibold text-primary;
+  }
+
+  .text-body {
+    @apply text-base font-normal text-primary;
+  }
+
+  .text-label {
+    @apply text-sm font-medium text-secondary;
+  }
+
+  .text-caption {
+    @apply text-xs font-normal text-tertiary uppercase tracking-wider;
+  }
+
+  /* Buttons - Premium */
+  .btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-brand-500/20 active:scale-95 transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-surface-tertiary text-primary rounded-lg font-semibold hover:bg-slate-700 active:scale-95 transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-2 text-secondary hover:text-primary hover:bg-slate-800/40 rounded-lg transition-all duration-200;
+  }
+
+  .btn-icon {
+    @apply w-10 h-10 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-slate-800/60 transition-all duration-200;
+  }
+
+  .btn-icon-sm {
+    @apply w-8 h-8 flex items-center justify-center rounded-md text-tertiary hover:text-secondary hover:bg-slate-800/40 transition-all duration-200;
+  }
+
+  /* Input fields */
+  .input-field {
+    @apply px-4 py-2 bg-surface-tertiary border border-divider rounded-lg text-primary placeholder-tertiary focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all duration-200;
+  }
+
+  .input-field-glass {
+    @apply px-4 py-2 bg-surface-glass backdrop-blur border border-divider rounded-lg text-primary placeholder-tertiary focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all duration-200;
+  }
+
+  /* Badge */
+  .badge-primary {
+    @apply inline-flex items-center justify-center px-3 py-1 bg-brand-500/20 text-brand-300 rounded-full text-xs font-medium border border-brand-500/30;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center justify-center px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-xs font-medium border border-green-500/30;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center justify-center px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-xs font-medium border border-yellow-500/30;
+  }
+
+  .badge-error {
+    @apply inline-flex items-center justify-center px-3 py-1 bg-red-500/20 text-red-300 rounded-full text-xs font-medium border border-red-500/30;
+  }
+
+  /* Status indicators */
+  .online-indicator {
+    @apply absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-surface-secondary shadow-lg animate-pulse-glow;
+  }
+
+  .away-indicator {
+    @apply absolute bottom-0 right-0 w-3 h-3 bg-yellow-500 rounded-full border-2 border-surface-secondary;
+  }
+
+  .offline-indicator {
+    @apply absolute bottom-0 right-0 w-3 h-3 bg-slate-500 rounded-full border-2 border-surface-secondary;
+  }
+
+  /* Avatar base */
+  .avatar-base {
+    @apply relative w-10 h-10 rounded-full object-cover;
+  }
+
+  .avatar-lg {
+    @apply relative w-16 h-16 rounded-full object-cover;
+  }
+
+  .avatar-xl {
+    @apply relative w-24 h-24 rounded-full object-cover;
+  }
+
+  /* Dividers */
+  .divider-horizontal {
+    @apply h-px bg-gradient-to-r from-transparent via-divider to-transparent;
+  }
+
+  .divider-vertical {
+    @apply w-px bg-gradient-to-b from-transparent via-divider to-transparent;
+  }
+
+  /* Skeleton loader */
+  .skeleton {
+    @apply bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 background-size-200 animate-shimmer rounded-lg;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2 focus:ring-offset-slate-950;
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideInFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideOutFade {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-12px);
+  }
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes messagePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes reactionFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.8);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.context-menu-animation {
+  animation: slideInFade 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  overflow: hidden;
+}
+
+.message-animation {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+.message-pop {
+  animation: messagePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.reaction-animation {
+  animation: reactionFloat 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.typing-indicator-dot {
+  animation: typingBounce 1.4s infinite;
+}
+
+.typing-indicator-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* ===== UTILITIES ===== */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-warm {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  border-radius: 12px;
+  z-index: -1;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(6, 182, 212, 0.3);
+  color: #f8fafc;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.reaction-animation {
+  animation: reactionFloat 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.typing-animation {
+  animation: typingBounce 1.4s infinite;
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Smooth transitions */
+@keyframes spinnerRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-slow {
+  animation: spinnerRotate 2s linear infinite;
+}
+
+/* ===== SCROLLBAR FIX ===== */
+* {
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+}
+
+@property --border-angle {
+  inherits: false;
+  initial-value: 0deg;
+  syntax: "<angle>";
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Dark themed scrollbar that matches dark UI */
+.scrollbar-dark {
+  scrollbar-color: #475569 #0f172a;  /* Firefox: thumb track */
+  scrollbar-width: thin;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.scrollbar-dark::-webkit-scrollbar {
+  width: 8px;  /* Vertical scrollbar width */
+  height: 8px;  /* Horizontal scrollbar height */
+}
+
+.scrollbar-dark::-webkit-scrollbar-track {
+  background: #0f172a;  /* Dark background to match theme */
+  border-radius: 10px;
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb {
+  background: #475569;  /* Slate-600 gray thumb */
+  border-radius: 10px;  /* Rounded edges */
+  border: 2px solid #0f172a;  /* Add border to match track */
+}
+
+.scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: #64748b;  /* Slate-500 on hover for visual feedback */
+}
+
+.scrollbar-dark::-webkit-scrollbar-corner {
+  background: #0f172a;  /* Corner where scrollbars meet */
+}
+
+.input {
+  @apply w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-sm sm:text-base text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all;
+}
+
+.auth-input-icon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-5;
+}
+
+.auth-input-label {
+  @apply block text-xs sm:text-sm font-medium text-slate-300 mb-2;
+}
+
+.auth-badge {
+  @apply inline-flex items-center px-2 sm:px-3 py-1 text-xs font-medium rounded-full bg-cyan-500/20 text-cyan-300;
+}
+
+.auth-btn {
+  @apply w-full bg-cyan-500 text-sm sm:text-base text-white rounded-lg py-2 sm:py-2.5 font-medium
+  hover:bg-cyan-600 focus:ring-2 focus:ring-cyan-500 transition-all duration-200 transform hover:scale-105;
+}
+
+.auth-link {
+  @apply px-3 sm:px-4 py-1 sm:py-2 inline-block bg-cyan-500/10 rounded-lg text-cyan-400
+  hover:text-cyan-500 text-xs sm:text-sm transition-all duration-200 hover:bg-cyan-500/20;
+}
+
+/* Button hover effects */
+.btn-hover {
+  @apply transition-all duration-200 hover:scale-105 active:scale-95;
+}
+
+/* Chat bubble styling improvements */
+.chat-bubble {
+  background-clip: padding-box;
+  position: relative;
+  transition: box-shadow 0.2s ease-out;
+}
+
+.chat-bubble:hover {
+  /* Only shadow changes on hover, never background color */
+}
+
+/* Remove any pseudo-element artifacts */
+.chat-bubble::before,
+.chat-bubble::after {
+  display: none !important;
+}
+
+/* Sent bubble - ALWAYS consistent teal color, no gradient */
+.sent-bubble {
+  background-color: #2196A6 !important;
+  opacity: 1 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Prevent ANY color changes on hover/active/focus */
+.sent-bubble:hover {
+  background-color: #2196A6 !important;
+  opacity: 1 !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.sent-bubble:active,
+.sent-bubble:focus {
+  background-color: #2196A6 !important;
+  opacity: 1 !important;
+}
+
+.sent-bubble::before,
+.sent-bubble::after {
+  display: none !important;
+}
+
+/* Received bubble - ALWAYS consistent dark color */
+.received-bubble {
+  background-color: #1e2c3a !important;
+  opacity: 1 !important;
+}
+
+.received-bubble:hover {
+  background-color: #1e2c3a !important;
+  opacity: 1 !important;
+}
+
+.received-bubble:active,
+.received-bubble:focus {
+  background-color: #1e2c3a !important;
+  opacity: 1 !important;
+}
+
+.received-bubble::before,
+.received-bubble::after {
+  display: none !important;
+}
+
+/* Fix "(edited)" label color - should be subtle, not change bubble */
+.message-edited-label {
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.75;
+  color: inherit;
+}
