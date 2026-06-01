@@ -31,9 +31,10 @@ const ICE_SERVERS = {
   ],
 };
 
-let peerRef = null;        // RTCPeerConnection
-let localStreamRef = null; // MediaStream
-let ringtoneRef = null;    // Audio
+let peerRef = null;          // RTCPeerConnection
+let localStreamRef = null;   // MediaStream
+let ringtoneRef = null;      // Audio
+let iceCandidateQueue = [];  // queue candidates before remoteDesc is set
 
 function stopRingtone() {
   if (ringtoneRef) { ringtoneRef.pause(); ringtoneRef = null; }
@@ -77,8 +78,18 @@ export const useCallStore = create((set, get) => ({
       stream.getTracks().forEach(t => peerRef.addTrack(t, stream));
 
       // Remote stream handler
+      const remoteStream = new MediaStream();
       peerRef.ontrack = (e) => {
-        set({ remoteStream: e.streams[0] });
+        e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+        set({ remoteStream });
+      };
+
+      // Connection state
+      peerRef.onconnectionstatechange = () => {
+        if (peerRef?.connectionState === "failed") {
+          toast.error("Call connection failed — network issue");
+          get().cleanupCall();
+        }
       };
 
       // ICE candidates
@@ -132,7 +143,18 @@ export const useCallStore = create((set, get) => ({
       peerRef = new RTCPeerConnection(ICE_SERVERS);
       stream.getTracks().forEach(t => peerRef.addTrack(t, stream));
 
-      peerRef.ontrack = (e) => set({ remoteStream: e.streams[0] });
+      const remoteStream = new MediaStream();
+      peerRef.ontrack = (e) => {
+        e.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+        set({ remoteStream });
+      };
+
+      peerRef.onconnectionstatechange = () => {
+        if (peerRef?.connectionState === "failed") {
+          toast.error("Call connection failed — network issue");
+          get().cleanupCall();
+        }
+      };
 
       peerRef.onicecandidate = (e) => {
         if (e.candidate) {
@@ -141,6 +163,13 @@ export const useCallStore = create((set, get) => ({
       };
 
       await peerRef.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+
+      // Drain any ICE candidates that arrived before remote description
+      for (const c of iceCandidateQueue) {
+        try { await peerRef.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+      }
+      iceCandidateQueue = [];
+
       const answer = await peerRef.createAnswer();
       await peerRef.setLocalDescription(answer);
 
@@ -219,6 +248,7 @@ export const useCallStore = create((set, get) => ({
     clearInterval(get().durationTimer);
     if (localStreamRef) { localStreamRef.getTracks().forEach(t => t.stop()); localStreamRef = null; }
     if (peerRef)        { peerRef.close(); peerRef = null; }
+    iceCandidateQueue = [];
     stopRingtone();
     set({ activeCall: null, incomingCall: null, localStream: null, remoteStream: null, isMuted: false, isCameraOff: false, callDuration: 0, durationTimer: null });
   },
@@ -249,6 +279,11 @@ export const useCallStore = create((set, get) => ({
       socket.on("call:accepted", async ({ answer }) => {
         if (!peerRef) return;
         await peerRef.setRemoteDescription(new RTCSessionDescription(answer));
+        // Drain queued ICE candidates
+        for (const c of iceCandidateQueue) {
+          try { await peerRef.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        }
+        iceCandidateQueue = [];
         const startTime = Date.now();
         const timer = setInterval(() => {
           set({ callDuration: Math.floor((Date.now() - startTime) / 1000) });
@@ -276,11 +311,15 @@ export const useCallStore = create((set, get) => ({
       });
 
       socket.on("call:ice", async ({ candidate }) => {
+        if (!candidate) return;
         try {
-          if (peerRef && candidate) {
+          if (peerRef && peerRef.remoteDescription) {
             await peerRef.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            // Queue until remote description is set
+            iceCandidateQueue.push(candidate);
           }
-        } catch (e) { console.error("ICE:", e); }
+        } catch (e) { console.error("ICE add error:", e); }
       });
     };
 
