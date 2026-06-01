@@ -1,13 +1,29 @@
 import { create } from "zustand";
 import { useAuthStore } from "./useAuthStore";
 import { axiosInstance } from "../lib/axios";
+import toast from "react-hot-toast";
 
-/* ── ICE servers (STUN — free, TURN would need a server) ─────────────────── */
+/* ── ICE servers — STUN + free TURN for NAT traversal (India-friendly) ───── */
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
+    // Free TURN servers (metered.ca)
+    {
+      urls: "turn:a.relay.metered.ca:80",
+      username: "free",
+      credential: "free",
+    },
+    {
+      urls: "turn:a.relay.metered.ca:443",
+      username: "free",
+      credential: "free",
+    },
+    {
+      urls: "turn:a.relay.metered.ca:443?transport=tcp",
+      username: "free",
+      credential: "free",
+    },
   ],
 };
 
@@ -83,6 +99,13 @@ export const useCallStore = create((set, get) => ({
       });
     } catch (err) {
       console.error("initiateCall:", err);
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        toast.error("Camera/microphone permission denied. Please allow access in browser settings.");
+      } else if (err.name === "NotFoundError") {
+        toast.error("Camera or microphone not found.");
+      } else {
+        toast.error("Could not start call. Check camera/mic permissions.");
+      }
       get().cleanupCall();
     }
   },
@@ -201,49 +224,67 @@ export const useCallStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
-    socket.on("call:incoming", (data) => {
-      // Busy if already in a call
-      if (get().activeCall) {
-        socket.emit("call:busy", { to: data.from });
-        return;
-      }
-      playRingtone();
-      set({ incomingCall: data });
-    });
+    const setup = () => {
+      socket.off("call:incoming");
+      socket.off("call:accepted");
+      socket.off("call:rejected");
+      socket.off("call:ended");
+      socket.off("call:busy");
+      socket.off("call:unavailable");
+      socket.off("call:ice");
 
-    socket.on("call:accepted", async ({ answer }) => {
-      if (!peerRef) return;
-      await peerRef.setRemoteDescription(new RTCSessionDescription(answer));
-      const startTime = Date.now();
-      const timer = setInterval(() => {
-        set({ callDuration: Math.floor((Date.now() - startTime) / 1000) });
-      }, 1000);
-      set(s => ({ activeCall: { ...s.activeCall, status: "active", startTime }, durationTimer: timer }));
-    });
-
-    socket.on("call:rejected", () => {
-      get().cleanupCall();
-    });
-
-    socket.on("call:ended", () => {
-      get().cleanupCall();
-    });
-
-    socket.on("call:busy", () => {
-      get().cleanupCall();
-    });
-
-    socket.on("call:unavailable", () => {
-      get().cleanupCall();
-    });
-
-    socket.on("call:ice", async ({ candidate }) => {
-      try {
-        if (peerRef && candidate) {
-          await peerRef.addIceCandidate(new RTCIceCandidate(candidate));
+      socket.on("call:incoming", (data) => {
+        if (get().activeCall) {
+          socket.emit("call:busy", { to: data.from });
+          return;
         }
-      } catch (e) { console.error("ICE:", e); }
-    });
+        playRingtone();
+        set({ incomingCall: data });
+      });
+
+      socket.on("call:accepted", async ({ answer }) => {
+        if (!peerRef) return;
+        await peerRef.setRemoteDescription(new RTCSessionDescription(answer));
+        const startTime = Date.now();
+        const timer = setInterval(() => {
+          set({ callDuration: Math.floor((Date.now() - startTime) / 1000) });
+        }, 1000);
+        set(s => ({ activeCall: { ...s.activeCall, status: "active", startTime }, durationTimer: timer }));
+      });
+
+      socket.on("call:rejected", () => {
+        toast("Call rejected", { icon: "📵" });
+        get().cleanupCall();
+      });
+
+      socket.on("call:ended", () => {
+        get().cleanupCall();
+      });
+
+      socket.on("call:busy", () => {
+        toast("User is busy on another call", { icon: "📵" });
+        get().cleanupCall();
+      });
+
+      socket.on("call:unavailable", () => {
+        toast.error("User is offline or unavailable");
+        get().cleanupCall();
+      });
+
+      socket.on("call:ice", async ({ candidate }) => {
+        try {
+          if (peerRef && candidate) {
+            await peerRef.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        } catch (e) { console.error("ICE:", e); }
+      });
+    };
+
+    if (socket.connected) {
+      setup();
+    } else {
+      socket.once("connect", setup);
+    }
   },
 
   unsubscribeFromCallEvents: () => {
