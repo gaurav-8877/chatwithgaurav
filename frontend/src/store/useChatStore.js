@@ -254,18 +254,20 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
 
-    // Remove any existing listeners first to prevent duplicates
-    socket.off("newMessage");
-    socket.off("messagesDelivered");
-    socket.off("messagesRead");
-    socket.off("messageDeleted");
-    socket.off("userTyping");
-    socket.off("userStoppedTyping");
-    socket.off("onlineUsers");
-    socket.off("messageEdited");
-    socket.off("reactionAdded");
-    socket.off("reactionRemoved");
+    const setup = () => {
+      // Remove any existing listeners first to prevent duplicates
+      socket.off("newMessage");
+      socket.off("messagesDelivered");
+      socket.off("messagesRead");
+      socket.off("messageDeleted");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
+      socket.off("onlineUsers");
+      socket.off("messageEdited");
+      socket.off("reactionAdded");
+      socket.off("reactionRemoved");
 
     // Listen for messages received from others
     socket.on("newMessage", (newMessage) => {
@@ -393,10 +395,20 @@ export const useChatStore = create((set, get) => ({
         ),
       });
     });
+    }; // end setup
+
+    // If socket already connected — setup immediately
+    // If not yet connected — wait for connect event then setup
+    if (socket.connected) {
+      setup();
+    } else {
+      socket.once("connect", setup);
+    }
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
     socket.off("newMessage");
     socket.off("messagesDelivered");
     socket.off("messagesRead");
