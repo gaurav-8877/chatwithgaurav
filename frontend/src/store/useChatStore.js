@@ -38,7 +38,11 @@ export const useChatStore = create((set, get) => ({
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedUser: async (selectedUser) => {
-    console.log("[useChatStore] Setting selected user:", selectedUser?.fullName, "ID:", selectedUser?._id);
+    if (selectedUser?._id) {
+      sessionStorage.setItem("selectedUserId", selectedUser._id);
+    } else {
+      sessionStorage.removeItem("selectedUserId");
+    }
     set({ selectedUser });
 
     // Mark messages as read when user opens a chat
