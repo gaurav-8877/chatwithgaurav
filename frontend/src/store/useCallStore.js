@@ -3,26 +3,30 @@ import { useAuthStore } from "./useAuthStore";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
-/* ── ICE servers — STUN + free TURN for NAT traversal (India-friendly) ───── */
+/* ── ICE servers — STUN + Open Relay TURN (free, no signup needed) ───────── */
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    // Free TURN servers (metered.ca)
     {
-      urls: "turn:a.relay.metered.ca:80",
-      username: "free",
-      credential: "free",
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:a.relay.metered.ca:443",
-      username: "free",
-      credential: "free",
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:a.relay.metered.ca:443?transport=tcp",
-      username: "free",
-      credential: "free",
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
   ],
 };

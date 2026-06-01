@@ -73,9 +73,14 @@ export function CallOverlay() {
   const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    if (localVideoRef.current  && localStream)  localVideoRef.current.srcObject = localStream;
-    if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
-  }, [localStream, remoteStream]);
+    if (localVideoRef.current && localStream)
+      localVideoRef.current.srcObject = localStream;
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream)
+      remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
 
   if (!activeCall) return null;
 
@@ -89,8 +94,11 @@ export function CallOverlay() {
 
       {/* ── Video call: remote full-screen ─────────────────────────── */}
       {isVideo && remoteStream && (
-        <video ref={remoteVideoRef} autoPlay playsInline
-          className="absolute inset-0 w-full h-full object-cover" />
+        <video
+          ref={el => { remoteVideoRef.current = el; if (el) el.srcObject = remoteStream; }}
+          autoPlay playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
       )}
 
       {/* ── Audio / waiting state ─────────────────────────────────── */}
