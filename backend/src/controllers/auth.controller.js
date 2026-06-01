@@ -91,18 +91,24 @@ export const login = async (req, res) => {
 
 /* ── Logout ─────────────────────────────────────────────────────────────── */
 export const logout = async (req, res) => {
+  const isProd = ENV.NODE_ENV !== "development";
+  const cookieOpts = {
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: isProd ? "none" : "strict",
+    secure: isProd,
+  };
   try {
-    // Update lastSeen on logout
     if (req.user?._id) {
       await User.findByIdAndUpdate(req.user._id, {
         status: "offline",
         lastSeen: new Date(),
       });
     }
-    res.cookie("jwt", "", { maxAge: 0 });
+    res.cookie("jwt", "", cookieOpts);
     res.status(200).json({ message: "Logged out successfully" });
   } catch {
-    res.cookie("jwt", "", { maxAge: 0 });
+    res.cookie("jwt", "", cookieOpts);
     res.status(200).json({ message: "Logged out successfully" });
   }
 };

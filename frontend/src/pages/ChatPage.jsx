@@ -417,10 +417,20 @@ export default function ChatPage() {
   const { selectedGroup, setSelectedGroup, fetchGroups, subscribeToGroupMessages, unsubscribeFromGroupMessages, fetchGroupMessages } = useGroupStore();
 
   useEffect(() => {
-    getMyChatPartners();
-    getAllContacts();
-    fetchGroups();
-  }, [getMyChatPartners, getAllContacts, fetchGroups]);
+    const restore = async () => {
+      await getMyChatPartners();
+      await getAllContacts();
+      fetchGroups();
+      // Restore last selected user from sessionStorage after contacts load
+      const savedId = sessionStorage.getItem("selectedUserId");
+      if (savedId) {
+        const found = useChatStore.getState().allContacts.find(u => u._id === savedId)
+          || useChatStore.getState().chats.find(u => u._id === savedId);
+        if (found) setSelectedUser(found);
+      }
+    };
+    restore();
+  }, []);
 
   const totalUnread = chats.reduce((n, c) => n + (c.unreadCount || 0), 0);
 

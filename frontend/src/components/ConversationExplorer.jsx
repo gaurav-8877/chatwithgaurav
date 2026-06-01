@@ -280,8 +280,22 @@ export default function ConversationExplorer({
                   onSelect={selectDm}
                 />
               ))
+            ) : filteredChats.length === 0 && filter === "unread" ? (
+              <Empty label="No unread messages" />
             ) : filteredChats.length === 0 ? (
-              <Empty label={filter === "unread" ? "No unread messages" : "No conversations yet"} />
+              // No chats yet — show all contacts so user can start a conversation
+              filteredContacts.length === 0 ? (
+                <Empty label="No users found" />
+              ) : (
+                <>
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#52525B" }}>
+                    People you can chat with
+                  </p>
+                  {filteredContacts.map(u => (
+                    <DmCard key={u._id} chat={u} isSelected={selectedUser?._id === u._id} onSelect={selectDm} />
+                  ))}
+                </>
+              )
             ) : (
               filteredChats.map(c => (
                 <DmCard
