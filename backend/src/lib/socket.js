@@ -17,7 +17,8 @@ const io = new Server(server, {
       if (
         ["http://localhost:5173", "http://localhost:3000"].includes(origin) ||
         (ENV.CLIENT_URL && origin === ENV.CLIENT_URL) ||
-        origin.endsWith(".onrender.com")
+        origin.endsWith(".onrender.com") ||
+        origin.endsWith(".vercel.app")
       ) return cb(null, true);
       cb(new Error(`Socket CORS blocked: ${origin}`));
     },

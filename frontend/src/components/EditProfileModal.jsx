@@ -151,7 +151,7 @@ export default function EditProfileModal({ onClose }) {
               style={{ background: "#27272A", color: "#A1A1AA" }}>
               Cancel
             </button>
-            <button type="submit" disabled={isSaving || (!avatarB64 && fullName.trim() === authUser?.fullName)}
+            <button type="submit" disabled={isSaving || (!avatarB64 && fullName.trim() === authUser?.fullName && bio.trim() === (authUser?.bio || ""))}
               className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
               style={{ background: "linear-gradient(135deg,#6D5DFC,#8B5CF6)", boxShadow: isSaving ? "none" : "0 4px 20px rgba(109,93,252,0.30)" }}>
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
